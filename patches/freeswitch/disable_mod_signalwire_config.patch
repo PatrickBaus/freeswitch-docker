@@ -1,0 +1,13 @@
+diff --git a/conf/vanilla/autoload_configs/modules.conf.xml b/conf/vanilla/autoload_configs/modules.conf.xml
+index b5a58d1580..743bca6286 100644
+--- a/conf/vanilla/autoload_configs/modules.conf.xml
++++ b/conf/vanilla/autoload_configs/modules.conf.xml
+@@ -50,7 +50,7 @@
+     <load module="mod_verto"/>
+ 
+     <!-- Applications -->
+-    <load module="mod_signalwire"/>
++    <!--<load module="mod_signalwire"/> -->
+     <load module="mod_commands"/>
+     <load module="mod_conference"/>
+     <!-- <load module="mod_curl"/> -->
