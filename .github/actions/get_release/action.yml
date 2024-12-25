@@ -7,7 +7,13 @@ inputs:
 outputs:
   version:
     description: "The tag of the latest release."
-    value: ${{ steps.release.outputs.value }}
+    value: ${{ steps.release.outputs.version }}
+  name:
+    description: "The name of the latest release."
+    value: ${{ steps.release.outputs.name }}
+  url:
+    description: "The URL linking the release."
+    value: ${{ steps.release.outputs.url }}
 
 runs:
   using: "composite"
@@ -22,8 +28,13 @@ runs:
     - name: Get latest release
       id: release
       run: |
-        TAG=$(curl -sL https://api.github.com/repos/${{ steps.gh-repo.outputs.value }}/releases/latest | jq -r '.tag_name')
-        echo "value=$TAG" >> $GITHUB_OUTPUT
+        RELEASE=$(curl -sL https://api.github.com/repos/${{ steps.gh-repo.outputs.value }}/releases/latest)
+        TAG=$(RELEASE | jq -r '.tag_name')
+        NAME=$(RELEASE | jq -r '.name')
+        URL=$(RELEASE | jq -r '.body')
+        echo "version=$TAG" >> $GITHUB_OUTPUT
+        echo "name=$NAME" >> $GITHUB_OUTPUT
+        echo "url=$URL" >> $GITHUB_OUTPUT
       shell: bash
 
     - name: Test output

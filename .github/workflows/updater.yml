@@ -12,19 +12,19 @@ jobs:
 
       - name: Get latest release tag
         uses: ./.github/actions/get_release
-        id: release-tag
+        id: release-info
         with:
           repository: https://github.com/signalwire/freeswitch
 
       - name: Print release tag
         run: |
-          echo "Latest upstream release: ${{ steps.release-tag.outputs.version }}"
+          echo "Latest upstream release: ${{ steps.release-info.outputs.version }}"
         shell: bash
 
       - name: Parse SemVer of Freeswitch
         id: upstream-freeswitch
         run: |
-          VALUE=$(echo ${{ steps.release-tag.outputs.version }} | sed 's/^[[:alnum:]]*\([[:digit:]]\+\.[[:digit:]]\+\.[[:digit:]]\+\)$/\1/')
+          VALUE=$(echo ${{ steps.release-info.outputs.version }} | sed 's/^[[:alnum:]]*\([[:digit:]]\+\.[[:digit:]]\+\.[[:digit:]]\+\)$/\1/')
           echo "value=$VALUE" >> $GITHUB_OUTPUT
         shell: bash
 
@@ -38,6 +38,8 @@ jobs:
     outputs:
       upstream-freeswitch: ${{ steps.upstream-freeswitch.outputs.value }}
       local-freeswitch: ${{ steps.local-freeswitch.outputs.value }}
+      name-freeswitch: ${{ steps.steps.release-info.outputs.name }}
+      url-freeswitch: ${{ steps.steps.release-info.outputs.url }}
 
   patch:
     runs-on: ubuntu-latest
@@ -65,16 +67,16 @@ jobs:
 
             Updates [FreeSWITCH](https://github.com/signalwire/freeswitch) to permit the latest version.
             - [Release notes](https://github.com/signalwire/freeswitch/releases/)
-          committer: updater[bot] <patrick.baus@physik.tu-darmstadt.de>
           body: |
             Updates the requirements on [FreeSWITCH](https://github.com/signalwire/freeswitch) to permit the latest version.
             <details>
             <summary>Release notes</summary>
             <ul>
-            <li><a href="https://github.com/signalwire/freeswitch/releases/"><code>Release notes</code></a></li>
+            <li><a href="${{ needs.prepare.outputs.url-freeswitch }}"><code>${{ needs.prepare.outputs.name-freeswitch }}</code></a></li>
             </ul>
             </details>
           title: |
             [FreeSWITCH] Update FreeSWITCH from ${{ needs.prepare.outputs.local-freeswitch }} to ${{ needs.prepare.outputs.upstream-freeswitch }}
           labels: dependencies, freeswitch
           branch: updater/freeswitch/freeswitch-${{ needs.prepare.outputs.upstream-freeswitch }}
+          sign-commits: true
