@@ -1,0 +1,80 @@
+name: Check for new release of Freeswitch
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get latest release tag
+        uses: ./.github/actions/get_release
+        id: release-tag
+        with:
+          repository: https://github.com/signalwire/freeswitch
+
+      - name: Print release tag
+        run: |
+          echo "Latest upstream release: ${{ steps.release-tag.outputs.value }}"
+        shell: bash
+
+      - name: Parse SemVer of Freeswitch
+        id: upstream-freeswitch
+        run: |
+          VALUE=$(echo ${{ steps.release-tag.outputs.value }} | sed 's/^[[:alnum:]]*\([[:digit:]]\+\.[[:digit:]]\+\.[[:digit:]]\+\)$/\1/')
+          echo "value=$VALUE" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Parse Dockerfile
+        id: local-freeswitch
+        run: |
+          VALUE=$(sed -n 's/ARG FREESWITCH\_VERSION=\"\([[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\)\"/\1/p' Dockerfile)
+          echo "value=$VALUE" >> $GITHUB_OUTPUT
+        shell: bash
+
+    outputs:
+      upstream-freeswitch: ${{ steps.upstream-freeswitch.outputs.value }}
+      local-freeswitch: ${{ steps.local-freeswitch.outputs.value }}
+
+  patch:
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Patch Freeswitch version if needed
+        if: ${{ needs.prepare.outputs.local-freeswitch != needs.prepare.outputs.upstream-freeswitch }}
+        run: |
+          echo "Freeswitch needs an update. Local version: ${{ needs.prepare.outputs.local-freeswitch }}, Upstream version: ${{ needs.prepare.outputs.upstream-freeswitch }}"
+          sed -i 's/ARG FREESWITCH\_VERSION=\"[[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\"/ARG FREESWITCH\_VERSION=\"${{ needs.prepare.outputs.upstream-freeswitch }}\"/' Dockerfile
+
+      - name: Create Pull Request
+        if: ${{ needs.prepare.outputs.upstream-freeswitch != needs.prepare.outputs.local-freeswitch }}
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: |
+            [FreeSWITCH] Update FreeSWITCH from ${{ needs.prepare.outputs.local-freeswitch }} to ${{ needs.prepare.outputs.upstream-freeswitch }}
+
+            Updates [FreeSWITCH](https://github.com/signalwire/freeswitch) to permit the latest version.
+            - [Release notes](https://github.com/signalwire/freeswitch/releases/)
+          committer: updater[bot] <patrick.baus@physik.tu-darmstadt.de>
+          body: |
+            Updates the requirements on [FreeSWITCH](https://github.com/signalwire/freeswitch) to permit the latest version.
+            <details>
+            <summary>Release notes</summary>
+            <ul>
+            <li><a href="https://github.com/signalwire/freeswitch/releases/"><code>Release notes</code></a></li>
+            </ul>
+            </details>
+          title: |
+            [FreeSWITCH] Update FreeSWITCH from ${{ needs.prepare.outputs.local-freeswitch }} to ${{ needs.prepare.outputs.upstream-freeswitch }}
+          labels: dependencies, freeswitch
+          branch: updater/freeswitch/freeswitch-${{ needs.prepare.outputs.upstream-freeswitch }}
