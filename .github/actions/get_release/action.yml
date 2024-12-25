@@ -29,9 +29,9 @@ runs:
       id: release
       run: |
         RELEASE=$(curl -sL https://api.github.com/repos/${{ steps.gh-repo.outputs.value }}/releases/latest)
-        TAG=$($RELEASE | jq -r '.tag_name')
-        NAME=$($RELEASE | jq -r '.name')
-        URL=$($RELEASE | jq -r '.body')
+        TAG=$(echo -E "$RELEASE" | jq -r '.tag_name')
+        NAME=$(echo -E "$RELEASE" | jq -r '.name')
+        URL=$(echo -E "$RELEASE" | jq -r '.html_url')
         echo "version=$TAG" >> $GITHUB_OUTPUT
         echo "name=$NAME" >> $GITHUB_OUTPUT
         echo "url=$URL" >> $GITHUB_OUTPUT
@@ -39,7 +39,7 @@ runs:
 
     - name: Test output
       run: |
-        if [ -z "${{ steps.release.outputs.value }}" ]; then
+        if [ -z "${{ steps.release.outputs.version }}" ]; then
           echo "Error. Release not found."
           exit 1
         fi
