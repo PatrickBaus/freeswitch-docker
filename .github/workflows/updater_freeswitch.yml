@@ -1,7 +1,8 @@
 name: Check for new release of FreeSWITCH
 
 on:
-  workflow_dispatch:
+  schedule:
+  - cron: "0 0 * * *"
 
 jobs:
   prepare:
