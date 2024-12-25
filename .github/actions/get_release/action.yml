@@ -32,3 +32,4 @@ runs:
           echo "Error. Release not found."
           exit 1
         fi
+      shell: bash
