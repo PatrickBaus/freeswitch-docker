@@ -12,26 +12,26 @@ jobs:
 
       - name: Get latest FreeSWTICH release tag
         uses: ./.github/actions/get_release
-        id: release-info-freeswitch
+        id: release-info
         with:
           repository: https://github.com/signalwire/freeswitch
 
       - name: Print release tag
         run: |
-          echo "Latest upstream release: ${{ steps.release-info-freeswitch.outputs.version }}"
+          echo "Latest upstream release: ${{ steps.release-info.outputs.version }}"
         shell: bash
 
       - name: Parse Dockerfile
-        id: local-freeswitch
+        id: local-version
         run: |
           VALUE=$(sed -n 's/ARG FREESWITCH\_VERSION=\"\(v[[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\)\"/\1/p' Dockerfile)
           echo "value=$VALUE" >> $GITHUB_OUTPUT
         shell: bash
     outputs:
-      upstream-freeswitch: ${{ steps.release-info-freeswitch.outputs.version }}
-      local-freeswitch: ${{ steps.local-freeswitch.outputs.value }}
-      name-freeswitch: ${{ steps.steps.release-info-freeswitch.outputs.name }}
-      url-freeswitch: ${{ steps.steps.release-info-freeswitch.outputs.url }}
+      upstream-version: ${{ steps.release-info.outputs.version }}
+      local-version: ${{ steps.local-version.outputs.value }}
+      name: ${{ steps.steps.release-info.outputs.name }}
+      url: ${{ steps.steps.release-info.outputs.url }}
 
   patch:
     runs-on: ubuntu-latest
@@ -45,17 +45,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Patch FreeSWITCH version if needed
-        if: ${{ needs.prepare.outputs.local-freeswitch != needs.prepare.outputs.upstream-freeswitch }}
+        if: ${{ needs.prepare.outputs.local-version != needs.prepare.outputs.upstream-version }}
         run: |
-          echo "Freeswitch needs an update. Local version: ${{ needs.prepare.outputs.local-freeswitch }}, Upstream version: ${{ needs.prepare.outputs.upstream-freeswitch }}"
-          sed -i 's/ARG FREESWITCH\_VERSION=\"[[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\"/ARG FREESWITCH\_VERSION=\"${{ needs.prepare.outputs.upstream-freeswitch }}\"/' Dockerfile
+          echo "Freeswitch needs an update. Local version: ${{ needs.prepare.outputs.local-version }}, Upstream version: ${{ needs.prepare.outputs.upstream-version }}"
+          sed -i 's/ARG FREESWITCH\_VERSION=\"v[[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\"/ARG FREESWITCH\_VERSION=\"${{ needs.prepare.outputs.upstream-version }}\"/' Dockerfile
 
       - name: Create Pull Request
-        if: ${{ needs.prepare.outputs.local-freeswitch != needs.prepare.outputs.upstream-freeswitch }}
+        if: ${{ needs.prepare.outputs.local-version != needs.prepare.outputs.upstream-version }}
         uses: peter-evans/create-pull-request@v7
         with:
           commit-message: |
-            [FreeSWITCH] Update FreeSWITCH from ${{ needs.prepare.outputs.local-freeswitch }} to ${{ needs.prepare.outputs.upstream-freeswitch }}
+            [FreeSWITCH] Update FreeSWITCH from ${{ needs.prepare.outputs.local-version }} to ${{ needs.prepare.outputs.upstream-version }}
 
             Updates [FreeSWITCH](https://github.com/signalwire/freeswitch) to permit the latest version.
             - [Release notes](https://github.com/signalwire/freeswitch/releases/)
@@ -64,11 +64,11 @@ jobs:
             <details>
             <summary>Release notes</summary>
             <ul>
-            <li><a href="${{ needs.prepare.outputs.url-freeswitch }}"><code>${{ needs.prepare.outputs.name-freeswitch }}</code></a></li>
+            <li><a href="${{ needs.prepare.outputs.url }}"><code>${{ needs.prepare.outputs.name }}</code></a></li>
             </ul>
             </details>
           title: |
-            [FreeSWITCH] Update FreeSWITCH from ${{ needs.prepare.outputs.local-freeswitch }} to ${{ needs.prepare.outputs.upstream-freeswitch }}
+            [FreeSWITCH] Update FreeSWITCH from ${{ needs.prepare.outputs.local-version }} to ${{ needs.prepare.outputs.upstream-version }}
           labels: dependencies, freeswitch
-          branch: updater/freeswitch/freeswitch-${{ needs.prepare.outputs.upstream-freeswitch }}
+          branch: updater/freeswitch/freeswitch-${{ needs.prepare.outputs.upstream-version }}
           sign-commits: true

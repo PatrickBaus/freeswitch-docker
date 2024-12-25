@@ -1,0 +1,74 @@
+name: Check for new release of Sofia
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get latest Sofia release tag
+        uses: ./.github/actions/get_release
+        id: release-info
+        with:
+          repository: https://github.com/freeswitch/sofia-sip
+
+      - name: Print release tag
+        run: |
+          echo "Latest upstream-version release: ${{ steps.release-info.outputs.version }}"
+        shell: bash
+
+      - name: Parse Dockerfile
+        id: local-version
+        run: |
+          VALUE=$(sed -n 's/ARG SOFIA_VERSION=\"\(v[[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\)\"/\1/p' Dockerfile)
+          echo "value=$VALUE" >> $GITHUB_OUTPUT
+        shell: bash
+    outputs:
+      upstream-version: ${{ steps.release-info.outputs.version }}
+      local-version: ${{ steps.local-version.outputs.value }}
+      name: ${{ steps.steps.release-info.outputs.name }}
+      url: ${{ steps.steps.release-info.outputs.url }}
+
+  patch:
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Patch Sofia version if needed
+        if: ${{ needs.prepare.outputs.local-version != needs.prepare.outputs.upstream-version }}
+        run: |
+          echo "Sofia needs an update. Local version: ${{ needs.prepare.outputs.local-version }}, Upstream version: ${{ needs.prepare.outputs.upstream-version }}"
+          sed -i 's/ARG SOFIA\_VERSION=\"v[[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\"/ARG SOFIA\_VERSION=\"${{ needs.prepare.outputs.upstream-version }}\"/' Dockerfile
+
+      - name: Create Pull Request
+        if: ${{ needs.prepare.outputs.local-version != needs.prepare.outputs.upstream-version }}
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: |
+            [Sofia] Update Sofia from ${{ needs.prepare.outputs.local-version }} to ${{ needs.prepare.outputs.upstream-version }}
+
+            Updates [Sofia](https://github.com/freeswitch/sofia-sip) to permit the latest version.
+            - [Release notes](https://github.com/freeswitch/sofia-sip/releases)
+          body: |
+            Updates the requirements on [Sofia](https://github.com/freeswitch/sofia-sip/releases) to permit the latest version.
+            <details>
+            <summary>Release notes</summary>
+            <ul>
+            <li><a href="${{ needs.prepare.outputs.url }}"><code>${{ needs.prepare.outputs.name }}</code></a></li>
+            </ul>
+            </details>
+          title: |
+            [Sofia] Update Sofia from ${{ needs.prepare.outputs.local-version }} to ${{ needs.prepare.outputs.upstream-version }}
+          labels: dependencies, sofia
+          branch: updater/sofia/sofia-${{ needs.prepare.outputs.upstream-version }}
+          sign-commits: true
