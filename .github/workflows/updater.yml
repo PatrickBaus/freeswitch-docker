@@ -1,4 +1,4 @@
-name: Check for new release of Freeswitch
+name: Check for new release of FreeSWITCH
 
 on:
   workflow_dispatch:
