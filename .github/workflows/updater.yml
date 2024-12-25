@@ -10,22 +10,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get latest release tag
+      - name: Get latest FreeSWTICH release tag
         uses: ./.github/actions/get_release
-        id: release-info
+        id: release-info-freeswitch
         with:
           repository: https://github.com/signalwire/freeswitch
 
       - name: Print release tag
         run: |
-          echo "Latest upstream release: ${{ steps.release-info.outputs.version }}"
-        shell: bash
-
-      - name: Parse SemVer of Freeswitch
-        id: upstream-freeswitch
-        run: |
-          VALUE=$(echo ${{ steps.release-info.outputs.version }} | sed 's/^[[:alnum:]]*\([[:digit:]]\+\.[[:digit:]]\+\.[[:digit:]]\+\)$/\1/')
-          echo "value=$VALUE" >> $GITHUB_OUTPUT
+          echo "Latest upstream release: ${{ steps.release-info-freeswitch.outputs.version }}"
         shell: bash
 
       - name: Parse Dockerfile
@@ -34,12 +27,11 @@ jobs:
           VALUE=$(sed -n 's/ARG FREESWITCH\_VERSION=\"\([[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\)\"/\1/p' Dockerfile)
           echo "value=$VALUE" >> $GITHUB_OUTPUT
         shell: bash
-
     outputs:
-      upstream-freeswitch: ${{ steps.upstream-freeswitch.outputs.value }}
+      upstream-freeswitch: ${{ steps.release-info-freeswitch.outputs.version }}
       local-freeswitch: ${{ steps.local-freeswitch.outputs.value }}
-      name-freeswitch: ${{ steps.steps.release-info.outputs.name }}
-      url-freeswitch: ${{ steps.steps.release-info.outputs.url }}
+      name-freeswitch: ${{ steps.steps.release-info-freeswitch.outputs.name }}
+      url-freeswitch: ${{ steps.steps.release-info-freeswitch.outputs.url }}
 
   patch:
     runs-on: ubuntu-latest
