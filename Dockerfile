@@ -1,7 +1,7 @@
 FROM alpine:3.21.0 AS base
 
-ARG FREESWITCH_VERSION="1.10.12"
-ARG SOFIA_VERSION="1.13.17"
+ARG FREESWITCH_VERSION="v1.10.12"
+ARG SOFIA_VERSION="v1.13.17"
 
 FROM base AS deps
 
@@ -11,9 +11,9 @@ RUN \
     git
 
 RUN \
-  git clone --depth 1 --branch "v${FREESWITCH_VERSION}" https://github.com/signalwire/freeswitch /freeswitch \
+  git clone --depth 1 --branch "${FREESWITCH_VERSION}" https://github.com/signalwire/freeswitch /freeswitch \
   && rm -rf /freeswitch/.git \
-  && git clone --depth 1 --branch "v${SOFIA_VERSION}" https://github.com/freeswitch/sofia-sip /libdeps/sofia-sip \
+  && git clone --depth 1 --branch "${SOFIA_VERSION}" https://github.com/freeswitch/sofia-sip /libdeps/sofia-sip \
   && rm -rf /sofia-sip/.git
 
 
