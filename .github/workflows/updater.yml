@@ -24,7 +24,7 @@ jobs:
       - name: Parse Dockerfile
         id: local-freeswitch
         run: |
-          VALUE=$(sed -n 's/ARG FREESWITCH\_VERSION=\"\([[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\)\"/\1/p' Dockerfile)
+          VALUE=$(sed -n 's/ARG FREESWITCH\_VERSION=\"\(v[[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\)\"/\1/p' Dockerfile)
           echo "value=$VALUE" >> $GITHUB_OUTPUT
         shell: bash
     outputs:
@@ -44,7 +44,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Patch Freeswitch version if needed
+      - name: Patch FreeSWITCH version if needed
         if: ${{ needs.prepare.outputs.local-freeswitch != needs.prepare.outputs.upstream-freeswitch }}
         run: |
           echo "Freeswitch needs an update. Local version: ${{ needs.prepare.outputs.local-freeswitch }}, Upstream version: ${{ needs.prepare.outputs.upstream-freeswitch }}"
