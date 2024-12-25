@@ -18,13 +18,13 @@ jobs:
 
       - name: Print release tag
         run: |
-          echo "Latest upstream release: ${{ steps.release-tag.outputs.value }}"
+          echo "Latest upstream release: ${{ steps.release-tag.outputs.version }}"
         shell: bash
 
       - name: Parse SemVer of Freeswitch
         id: upstream-freeswitch
         run: |
-          VALUE=$(echo ${{ steps.release-tag.outputs.value }} | sed 's/^[[:alnum:]]*\([[:digit:]]\+\.[[:digit:]]\+\.[[:digit:]]\+\)$/\1/')
+          VALUE=$(echo ${{ steps.release-tag.outputs.version }} | sed 's/^[[:alnum:]]*\([[:digit:]]\+\.[[:digit:]]\+\.[[:digit:]]\+\)$/\1/')
           echo "value=$VALUE" >> $GITHUB_OUTPUT
         shell: bash
 
@@ -57,7 +57,7 @@ jobs:
           sed -i 's/ARG FREESWITCH\_VERSION=\"[[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\"/ARG FREESWITCH\_VERSION=\"${{ needs.prepare.outputs.upstream-freeswitch }}\"/' Dockerfile
 
       - name: Create Pull Request
-        if: ${{ needs.prepare.outputs.upstream-freeswitch != needs.prepare.outputs.local-freeswitch }}
+        if: ${{ needs.prepare.outputs.local-freeswitch != needs.prepare.outputs.upstream-freeswitch }}
         uses: peter-evans/create-pull-request@v7
         with:
           commit-message: |
