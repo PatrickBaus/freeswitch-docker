@@ -1,3 +1,5 @@
+[![Check for new release of FreeSWITCH](https://github.com/PatrickBaus/freeswitch-docker/actions/workflows/updater_freeswitch.yml/badge.svg)](https://github.com/PatrickBaus/freeswitch-docker/actions/workflows/updater_freeswitch.yml)
+[![Check for new release of Sofia](https://github.com/PatrickBaus/freeswitch-docker/actions/workflows/updater_sofia.yml/badge.svg)](https://github.com/PatrickBaus/freeswitch-docker/actions/workflows/updater_sofia.yml)
 # FreeSWTICH Docker container
 This is an inofficial Docker file for [FreeSWITCH](https://signalwire.com/freeswitch). There currently is no official Docker container available from Signalwire except for [safarov/freeswitch](https://hub.docker.com/r/safarov/freeswitch) which has not been updated for years and is currently stuck at version 1.6. This container tracks the official releases.
 
