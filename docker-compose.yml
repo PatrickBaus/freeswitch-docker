@@ -1,0 +1,11 @@
+services:
+  freeswitch:
+    image: ghcr.io/patrickbaus/freeswitch-docker
+    container_name: freeswitch
+    restart: always
+    cap_add:  # Enable RT features
+      - SYS_NICE
+    network_mode: "host"
+    volumes:
+      - '/mnt/docker/freeswitch2/configs/:/etc/freeswitch/'
+      - '/mnt/docker/freeswitch2/logs/:/var/log/freeswitch/'
