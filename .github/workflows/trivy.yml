@@ -1,0 +1,53 @@
+name: Trivy vulnerability test
+
+on:
+  workflow_run:
+    workflows: [ "ci" ]
+    types:
+      - completed
+  schedule:
+    - cron: '0 0 * * 1'
+env:
+  # Use docker.io for Docker Hub if empty
+  REGISTRY: ghcr.io
+  # github.repository as <account>/<repo>
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      matrix:
+        docker-tag: [ "master", "latest" ]
+
+    steps:
+      # Login against a Docker registry except on PR
+      # https://github.com/docker/login-action
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Convert repository name to lowercase
+        run: |
+          echo "IMAGE_NAME_LC=${IMAGE_NAME,,}" >>${GITHUB_ENV}
+
+      - name: Scan image for vulnerabilities in Docker image ${{ matrix.docker-tag }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:${{ matrix.docker-tag }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
