@@ -11,6 +11,9 @@ outputs:
   name:
     description: "The name of the latest release."
     value: ${{ steps.release.outputs.name }}
+  body:
+    description: "The desciption of the latest release."
+    value: ${{ steps.release.outputs.body }}
   url:
     description: "The URL linking the release."
     value: ${{ steps.release.outputs.url }}
@@ -32,8 +35,10 @@ runs:
         TAG=$(echo -E "$RELEASE" | jq -r '.tag_name')
         NAME=$(echo -E "$RELEASE" | jq -r '.name')
         URL=$(echo -E "$RELEASE" | jq -r '.html_url')
+        BODY=$(echo -E "$RELEASE" | jq -r '.body')
         echo "version=$TAG" >> $GITHUB_OUTPUT
         echo "name=$NAME" >> $GITHUB_OUTPUT
+        echo "body=$BODY" >> $GITHUB_OUTPUT
         echo "url=$URL" >> $GITHUB_OUTPUT
       shell: bash
 

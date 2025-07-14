@@ -32,6 +32,7 @@ jobs:
       upstream-version: ${{ steps.release-info.outputs.version }}
       local-version: ${{ steps.local-version.outputs.value }}
       name: ${{ steps.steps.release-info.outputs.name }}
+      body: ${{ steps.steps.release-info.outputs.body }}
       url: ${{ steps.steps.release-info.outputs.url }}
 
   patch:
@@ -58,15 +59,18 @@ jobs:
           commit-message: |
             [Sofia] Update Sofia from ${{ needs.prepare.outputs.local-version }} to ${{ needs.prepare.outputs.upstream-version }}
 
-            Updates [Sofia](https://github.com/freeswitch/sofia-sip) to permit the latest version.
+            Updates the requirements on [Sofia](https://github.com/freeswitch/sofia-sip) to permit the latest version.
             - [Release notes](https://github.com/freeswitch/sofia-sip/releases)
           body: |
             Updates the requirements on [Sofia](https://github.com/freeswitch/sofia-sip/releases) to permit the latest version.
             <details>
             <summary>Release notes</summary>
-            <ul>
-            <li><a href="${{ needs.prepare.outputs.url }}"><code>${{ needs.prepare.outputs.name }}</code></a></li>
-            </ul>
+            <p dir="auto">
+            <em>Sourced from <a href="${{ needs.prepare.outputs.url }}">${{ needs.prepare.outputs.name }}'s releases</a>.</em>
+            </p>
+            <blockquote>
+            ${{ needs.prepare.outputs.body }}
+            </blockquote>
             </details>
           title: |
             [Sofia] Update Sofia from ${{ needs.prepare.outputs.local-version }} to ${{ needs.prepare.outputs.upstream-version }}
