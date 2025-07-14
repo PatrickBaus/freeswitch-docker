@@ -39,7 +39,7 @@ runs:
 
     - name: Test output
       run: |
-        if [ -z "${{ steps.release.outputs.version }}" ]; then
+        if [ -z "${{ steps.release.outputs.version }}" ] || [ "${{ steps.release.outputs.version }}" = "null" ]; then
           echo "Error. Release not found."
           exit 1
         fi
