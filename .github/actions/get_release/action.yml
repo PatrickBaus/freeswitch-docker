@@ -36,9 +36,12 @@ runs:
         NAME=$(echo -E "$RELEASE" | jq -r '.name')
         URL=$(echo -E "$RELEASE" | jq -r '.html_url')
         BODY=$(echo -E "$RELEASE" | jq -r '.body')
+        EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
         echo "version=$TAG" >> $GITHUB_OUTPUT
         echo "name=$NAME" >> $GITHUB_OUTPUT
-        echo "body=$BODY" >> $GITHUB_OUTPUT
+        echo "body<<$EOF" >> $GITHUB_OUTPUT
+        echo "$BODY" >> $GITHUB_OUTPUT
+        echo "$EOF" >> $GITHUB_OUTPUT
         echo "url=$URL" >> $GITHUB_OUTPUT
       shell: bash
 
