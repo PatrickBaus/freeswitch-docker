@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get latest FreeSWTICH release tag
         uses: ./.github/actions/get_release
@@ -45,7 +45,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Patch FreeSWITCH version if needed
         if: ${{ needs.prepare.outputs.local-version != needs.prepare.outputs.upstream-version }}
