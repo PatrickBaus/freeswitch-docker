@@ -94,7 +94,7 @@ jobs:
 
       - name: Upload digest
         if: needs.prepare.outputs.push == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: digest-${{ steps.platform.outputs.value }}
           path: /tmp/digests/*
