@@ -55,7 +55,7 @@ jobs:
 
       - name: Create Pull Request
         if: ${{ needs.prepare.outputs.local-version != needs.prepare.outputs.upstream-version }}
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: |
             [Sofia] Update Sofia from ${{ needs.prepare.outputs.local-version }} to ${{ needs.prepare.outputs.upstream-version }}
