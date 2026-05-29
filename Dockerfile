@@ -93,7 +93,9 @@ RUN \
   # mod_sndfile
     libsndfile-dev \
   # mod_verto
-    libks-dev
+    libks-dev \
+  # mod_av
+    ffmpeg-dev
 
 RUN \
   cd /app \
