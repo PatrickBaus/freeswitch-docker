@@ -14,7 +14,7 @@ This is an inofficial Docker file for [FreeSWITCH](https://signalwire.com/freesw
 - [License](#license)
 
 ## Introduction
-This Docker container is based on [Alpine Linux](https://alpinelinux.org/) instead of the Debian base image used by the [example Dockerfiles](https://github.com/signalwire/freeswitch#build-from-source). The container, in contrast to the default [FreeSWITCH](https://signalwire.com/freeswitch) build, does not contain `mod_av` and `mod_signalwire`.
+This Docker container is based on [Alpine Linux](https://alpinelinux.org/) instead of the Debian base image used by the [example Dockerfiles](https://github.com/signalwire/freeswitch#build-from-source). The container, in contrast to the default [FreeSWITCH](https://signalwire.com/freeswitch) build, does not contain `mod_signalwire`.
 
 ## Installation
 The container requires a data volume to store the configuration. [FreeSWITCH](https://signalwire.com/freeswitch) also requires port forwarding of (possibly) a large number of ports. The ports required can be found in the [FreeSWITCH documentation](https://developer.signalwire.com/freeswitch/FreeSWITCH-Explained/Networking/Firewall_1048908/), but due to the nature of RTP, the large number of required ports pose an [issue with Docker](https://github.com/moby/moby/issues/11185). It is therefore recommended to use `host` networking mode with this image.
