@@ -61,12 +61,11 @@ RUN \
     zlib-dev \
     sqlite-dev \
     curl-dev \
-    pcre-dev \
+    pcre2-dev \
     speex-dev \
     speexdsp-dev \
-# mod_enum
+  # mod_enum
     ldns-dev \
-    libks-dev \
     libedit-dev \
     diffutils \
     nasm \
@@ -84,15 +83,17 @@ RUN \
     perl-dev \
     opus-dev \
     portaudio-dev \
-# mod_sangoma_codec
+  # mod_sangoma_codec
     sngtc_client-dev \
-# mod_shout
+  # mod_shout
     libshout-dev\
     lame-dev \
-# mod_snmp
+  # mod_snmp
     net-snmp-dev\
-# mod_sndfile
-    libsndfile-dev
+  # mod_sndfile
+    libsndfile-dev \
+  # mod_verto
+    libks-dev
 
 RUN \
   cd /app \
