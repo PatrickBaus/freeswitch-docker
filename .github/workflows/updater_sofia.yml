@@ -32,9 +32,9 @@ jobs:
     outputs:
       upstream-version: ${{ steps.release-info.outputs.version }}
       local-version: ${{ steps.local-version.outputs.value }}
-      name: ${{ steps.steps.release-info.outputs.name }}
-      body: ${{ steps.steps.release-info.outputs.body }}
-      url: ${{ steps.steps.release-info.outputs.url }}
+      name: ${{ steps.release-info.outputs.name }}
+      body: ${{ steps.release-info.outputs.body }}
+      url: ${{ steps.release-info.outputs.url }}
 
   patch:
     runs-on: ubuntu-latest
