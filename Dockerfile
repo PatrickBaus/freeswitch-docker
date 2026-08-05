@@ -35,7 +35,7 @@ RUN \
 
 RUN \
   cd ./libdeps/sofia-sip \
-  && for i in /patches/*.patch; do [ -e "$i" ] && patch -p1 < "$i"; done \
+  && for i in /patches/*.patch; do [ -e "$i" ] || break; patch -p1 -i "$i"; done \
   && ./bootstrap.sh \
   && ./configure --prefix=/usr --enable-sctp --with-openssl --without-doxygen --enable-static=no \
   && make -j$(nproc --all) \
@@ -99,7 +99,7 @@ RUN \
 
 RUN \
   cd /app \
-  && for i in /patches/*.patch; do [ -e "$i" ] && patch -p1 < "$i"; done \
+  && for i in /patches/*.patch; do [ -e "$i" ] || break; patch -p1 -i "$i"; done \
   && ./bootstrap.sh -j \
   && ./configure \
     --prefix=/usr \
