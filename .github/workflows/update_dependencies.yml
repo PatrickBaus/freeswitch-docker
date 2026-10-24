@@ -8,6 +8,10 @@ on:
 jobs:
   update:
     name: Update ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -27,13 +31,15 @@ jobs:
             labels: dependencies, freeswitch
             branch: updater/github_actions/github/signalwire/freeswitch
             version-arg: FREESWITCH_VERSION
-    permissions:
-      contents: write
-      pull-requests: write
-    uses: ./.github/actions/update-dependency.yml
-    with:
-      repository: ${{ matrix.repository }}
-      name: ${{ matrix.name }}
-      labels: ${{ matrix.labels }}
-      branch: ${{ matrix.branch }}
-      version-arg: ${{ matrix.version-arg }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Update ${{ matrix.name }}
+        uses: ./.github/actions/update_dependency
+        with:
+          repository: ${{ matrix.repository }}
+          name: ${{ matrix.name }}
+          labels: ${{ matrix.labels }}
+          branch: ${{ matrix.branch }}
+          version-arg: ${{ matrix.version-arg }}

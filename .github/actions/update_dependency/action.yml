@@ -1,129 +1,131 @@
 name: Update dependency
+description: >
+  Checks upstream for a new release of a dependency and opens a pull request
+  that bumps the matching `ARG <NAME>_VERSION="vX.Y.Z"` line in the Dockerfile.
+  The calling job must check out the repository first and grant
+  `contents: write` and `pull-requests: write`.
 
-# Checks upstream for a new release of a dependency and opens a PR that bumps
-# the matching `ARG <NAME>_VERSION="vX.Y.Z"` line in the Dockerfile.
+inputs:
+  repository:
+    description: "Upstream GitHub repository URL, e.g. https://github.com/freeswitch/sofia-sip"
+    required: true
+  name:
+    description: "Human readable dependency name, e.g. Sofia (used in titles and messages)"
+    required: true
+  labels:
+    description: "Labels for the PR, comma or newline separated, e.g. 'dependencies, sofia'"
+    required: true
+  branch:
+    description: "Branch name prefix; the upstream version is appended, e.g. updater/sofia/sofia -> updater/sofia/sofia-v1.13.18"
+    required: true
+  version-arg:
+    description: "Name of the Dockerfile ARG to update. Defaults to the upper-cased name + _VERSION (Sofia -> SOFIA_VERSION)"
+    required: false
+    default: ""
+  dockerfile:
+    description: "Path of the Dockerfile to update"
+    required: false
+    default: "Dockerfile"
 
-on:
-  workflow_call:
-    inputs:
-      repository:
-        description: "Upstream GitHub repository URL, e.g. https://github.com/org/repo"
-        type: string
-        required: true
-      name:
-        description: "Human readable dependency name, e.g. Docker (used in titles and messages)"
-        type: string
-        required: true
-      labels:
-        description: "Labels for the PR, comma or newline separated, e.g. 'dependencies, mylib'"
-        type: string
-        required: true
-      branch:
-        description: "Branch name prefix; the upstream version is appended, e.g. updater/github_actions/github/mylib -> uupdater/github_actions/github/mylib-v1.13.18"
-        type: string
-        required: true
-      version-arg:
-        description: "Name of the Dockerfile ARG to update. Defaults to the upper-cased name + _VERSION (mylib -> MYLIB_VERSION)"
-        type: string
-        required: false
-        default: ""
-      dockerfile:
-        description: "Path of the Dockerfile to update"
-        type: string
-        required: false
-        default: "Dockerfile"
+outputs:
+  updated:
+    description: "'true' if a newer upstream version was found and a pull request was created or updated"
+    value: ${{ steps.check.outputs.updated }}
+  local-version:
+    description: "Version currently pinned in the Dockerfile"
+    value: ${{ steps.local-version.outputs.value }}
+  upstream-version:
+    description: "Latest upstream release"
+    value: ${{ steps.release-info.outputs.version }}
 
-jobs:
-  prepare:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+runs:
+  using: composite
+  steps:
+    - name: Get latest ${{ inputs.name }} release tag
+      id: release-info
+      uses: ./.github/actions/get_release
+      with:
+        repository: ${{ inputs.repository }}
 
-      - name: Get latest ${{ inputs.name }} release tag
-        uses: ./.github/actions/get_release
-        id: release-info
-        with:
-          repository: ${{ inputs.repository }}
+    - name: Print release tag
+      shell: bash
+      env:
+        UPSTREAM_VERSION: ${{ steps.release-info.outputs.version }}
+      run: |
+        echo "Latest upstream release: ${UPSTREAM_VERSION}"
 
-      - name: Print release tag
-        env:
-          UPSTREAM_VERSION: ${{ steps.release-info.outputs.version }}
-        run: |
-          echo "Latest upstream release: ${UPSTREAM_VERSION}"
-        shell: bash
+    - name: Parse Dockerfile
+      id: local-version
+      shell: bash
+      env:
+        NAME: ${{ inputs.name }}
+        VERSION_ARG: ${{ inputs.version-arg }}
+        DOCKERFILE: ${{ inputs.dockerfile }}
+      run: |
+        if [ -z "${VERSION_ARG}" ]; then
+          VERSION_ARG="$(echo "${NAME}" | tr '[:lower:] -' '[:upper:]__')_VERSION"
+        fi
+        VALUE=$(sed -n -E "s/^ARG ${VERSION_ARG}=\"(v[0-9]+\.[0-9]+\.[0-9]+)\"/\1/p" "${DOCKERFILE}")
+        if [ -z "${VALUE}" ]; then
+          echo "::error::Could not find 'ARG ${VERSION_ARG}=\"vX.Y.Z\"' in ${DOCKERFILE}"
+          exit 1
+        fi
+        echo "value=${VALUE}" >> "$GITHUB_OUTPUT"
+        echo "arg=${VERSION_ARG}" >> "$GITHUB_OUTPUT"
 
-      - name: Parse Dockerfile
-        id: local-version
-        env:
-          NAME: ${{ inputs.name }}
-          VERSION_ARG: ${{ inputs.version-arg }}
-          DOCKERFILE: ${{ inputs.dockerfile }}
-        run: |
-          if [ -z "${VERSION_ARG}" ]; then
-            VERSION_ARG="$(echo "${NAME}" | tr '[:lower:] -' '[:upper:]__')_VERSION"
-          fi
-          VALUE=$(sed -n -E "s/^ARG ${VERSION_ARG}=\"(v[0-9]+\.[0-9]+\.[0-9]+)\"/\1/p" "${DOCKERFILE}")
-          if [ -z "${VALUE}" ]; then
-            echo "::error::Could not find 'ARG ${VERSION_ARG}=\"vX.Y.Z\"' in ${DOCKERFILE}"
-            exit 1
-          fi
-          echo "value=${VALUE}" >> "$GITHUB_OUTPUT"
-          echo "arg=${VERSION_ARG}" >> "$GITHUB_OUTPUT"
-        shell: bash
-    outputs:
-      upstream-version: ${{ steps.release-info.outputs.version }}
-      local-version: ${{ steps.local-version.outputs.value }}
-      version-arg: ${{ steps.local-version.outputs.arg }}
-      name: ${{ steps.release-info.outputs.name }}
-      body: ${{ steps.release-info.outputs.body }}
-      url: ${{ steps.release-info.outputs.url }}
+    - name: Compare versions
+      id: check
+      shell: bash
+      env:
+        LOCAL_VERSION: ${{ steps.local-version.outputs.value }}
+        UPSTREAM_VERSION: ${{ steps.release-info.outputs.version }}
+      run: |
+        if [ "${LOCAL_VERSION}" != "${UPSTREAM_VERSION}" ]; then
+          echo "updated=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "updated=false" >> "$GITHUB_OUTPUT"
+          echo "Already up to date (${LOCAL_VERSION})"
+        fi
 
-  patch:
-    needs: prepare
-    if: ${{ needs.prepare.outputs.local-version != needs.prepare.outputs.upstream-version }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
+    - name: Patch ${{ inputs.name }} version
+      if: ${{ steps.check.outputs.updated == 'true' }}
+      shell: bash
+      env:
+        DEP_NAME: ${{ inputs.name }}
+        LOCAL_VERSION: ${{ steps.local-version.outputs.value }}
+        UPSTREAM_VERSION: ${{ steps.release-info.outputs.version }}
+        VERSION_ARG: ${{ steps.local-version.outputs.arg }}
+        DOCKERFILE: ${{ inputs.dockerfile }}
+      run: |
+        echo "${DEP_NAME} needs an update. Local version: ${LOCAL_VERSION}, Upstream version: ${UPSTREAM_VERSION}"
+        sed -i -E "s/^(ARG ${VERSION_ARG}=\")v[0-9]+\.[0-9]+\.[0-9]+\"/\1${UPSTREAM_VERSION}\"/" "${DOCKERFILE}"
+        if git diff --quiet -- "${DOCKERFILE}"; then
+          echo "::error::${DOCKERFILE} was not changed"
+          exit 1
+        fi
 
-      - name: Patch ${{ inputs.name }} version
-        env:
-          DEP_NAME: ${{ inputs.name }}
-          LOCAL_VERSION: ${{ needs.prepare.outputs.local-version }}
-          UPSTREAM_VERSION: ${{ needs.prepare.outputs.upstream-version }}
-          VERSION_ARG: ${{ needs.prepare.outputs.version-arg }}
-          DOCKERFILE: ${{ inputs.dockerfile }}
-        run: |
-          echo "${DEP_NAME} needs an update. Local version: ${LOCAL_VERSION}, Upstream version: ${UPSTREAM_VERSION}"
-          sed -i -E "s/^(ARG ${VERSION_ARG}=\")v[0-9]+\.[0-9]+\.[0-9]+\"/\1${UPSTREAM_VERSION}\"/" "${DOCKERFILE}"
-          git diff --exit-code "${DOCKERFILE}" && { echo "::error::Dockerfile was not changed"; exit 1; } || true
-        shell: bash
+    - name: Create Pull Request
+      if: ${{ steps.check.outputs.updated == 'true' }}
+      uses: peter-evans/create-pull-request@v8
+      with:
+        commit-message: |
+          [${{ inputs.name }}] Update ${{ inputs.name }} from ${{ steps.local-version.outputs.value }} to ${{ steps.release-info.outputs.version }}
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v8
-        with:
-          commit-message: |
-            [${{ inputs.name }}] Update ${{ inputs.name }} from ${{ needs.prepare.outputs.local-version }} to ${{ needs.prepare.outputs.upstream-version }}
-
-            Updates the requirements on [${{ inputs.name }}](${{ inputs.repository }}) to permit the latest version.
-            - [Release notes](${{ inputs.repository }}/releases)
-          body: |
-            Updates the requirements on [${{ inputs.name }}](${{ inputs.repository }}/releases) to permit the latest version.
-            <details>
-            <summary>Release notes</summary>
-            <p dir="auto">
-            <em>Sourced from <a href="${{ needs.prepare.outputs.url }}">${{ needs.prepare.outputs.name }}'s releases</a>.</em>
-            </p>
-            <blockquote>
-            ${{ needs.prepare.outputs.body }}
-            </blockquote>
-            </details>
-          title: |
-            [${{ inputs.name }}] Update ${{ inputs.name }} from ${{ needs.prepare.outputs.local-version }} to ${{ needs.prepare.outputs.upstream-version }}
-          labels: ${{ inputs.labels }}
-          branch: ${{ inputs.branch }}-${{ needs.prepare.outputs.upstream-version }}
-          sign-commits: true
+          Updates the requirements on [${{ inputs.name }}](${{ inputs.repository }}) to permit the latest version.
+          - [Release notes](${{ inputs.repository }}/releases)
+        body: |
+          Updates the requirements on [${{ inputs.name }}](${{ inputs.repository }}/releases) to permit the latest version.
+          <details>
+          <summary>Release notes</summary>
+          <p dir="auto">
+          <em>Sourced from <a href="${{ steps.release-info.outputs.url }}">${{ steps.release-info.outputs.name }}'s releases</a>.</em>
+          </p>
+          <blockquote>
+          ${{ steps.release-info.outputs.body }}
+          </blockquote>
+          </details>
+        title: |
+          [${{ inputs.name }}] Update ${{ inputs.name }} from ${{ steps.local-version.outputs.value }} to ${{ steps.release-info.outputs.version }}
+        labels: ${{ inputs.labels }}
+        branch: ${{ inputs.branch }}-${{ steps.release-info.outputs.version }}
+        sign-commits: true
