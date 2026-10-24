@@ -1,8 +1,23 @@
-name: "Get latests release of a repository"
+name: "Get latest release of a repository"
+description: >
+  Returns the latest release of a GitHub repository. Falls back to the newest
+  plain vX.Y.Z git tag for repositories that do not publish GitHub releases.
+
 inputs:
   repository:
-     required: true
-     description: "The URL of the repository to be checked."
+    required: true
+    description: "The URL of the repository to be checked, e.g. https://github.com/freeswitch/sofia-sip"
+  source:
+    required: false
+    default: "auto"
+    description: >
+      Where to look for the latest version: "release" (GitHub releases only),
+      "tags" (newest vX.Y.Z git tag only) or "auto" (release, then tags if the
+      repository has no release).
+  token:
+    required: false
+    default: ${{ github.token }}
+    description: "Token used for the GitHub API (avoids the low rate limit for anonymous requests)."
 
 outputs:
   version:
@@ -12,7 +27,7 @@ outputs:
     description: "The name of the latest release."
     value: ${{ steps.release.outputs.name }}
   body:
-    description: "The desciption of the latest release."
+    description: "The description of the latest release (empty when resolved from a tag)."
     value: ${{ steps.release.outputs.body }}
   url:
     description: "The URL linking the release."
@@ -21,34 +36,87 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Extract github repo
-      id: gh-repo
-      run: |
-        URL=$(echo ${{ inputs.repository }} | sed 's/^.*github\.com\/\([[:alnum:]\-]\+\/[[:alnum:]\-]\+\)\/\?$/\1/;t;Q1')
-        echo "value=$URL" >> $GITHUB_OUTPUT
-      shell: bash
-
     - name: Get latest release
       id: release
-      run: |
-        RELEASE=$(curl -sL https://api.github.com/repos/${{ steps.gh-repo.outputs.value }}/releases/latest)
-        TAG=$(echo -E "$RELEASE" | jq -r '.tag_name')
-        NAME=$(echo -E "$RELEASE" | jq -r '.name')
-        URL=$(echo -E "$RELEASE" | jq -r '.html_url')
-        BODY=$(echo -E "$RELEASE" | jq -r '.body')
-        EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-        echo "version=$TAG" >> $GITHUB_OUTPUT
-        echo "name=$NAME" >> $GITHUB_OUTPUT
-        echo "body<<$EOF" >> $GITHUB_OUTPUT
-        echo "$BODY" >> $GITHUB_OUTPUT
-        echo "$EOF" >> $GITHUB_OUTPUT
-        echo "url=$URL" >> $GITHUB_OUTPUT
       shell: bash
-
-    - name: Test output
+      env:
+        REPOSITORY: ${{ inputs.repository }}
+        SOURCE: ${{ inputs.source }}
+        GH_TOKEN: ${{ inputs.token }}
       run: |
-        if [ -z "${{ steps.release.outputs.version }}" ] || [ "${{ steps.release.outputs.version }}" = "null" ]; then
-          echo "Error. Release not found."
+        # Strict parsing: https://github.com/<owner>/<repo>[.git][/]
+        repo_url="${REPOSITORY%/}"
+        repo_url="${repo_url%.git}"
+        if [[ ! "${repo_url}" =~ ^https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$ ]]; then
+          echo "::error::'repository' must look like https://github.com/<owner>/<repo>"
           exit 1
         fi
-      shell: bash
+        repo="${BASH_REMATCH[1]}"
+
+        case "${SOURCE}" in
+          release|tags|auto) ;;
+          *) echo "::error::'source' must be one of: release, tags, auto"; exit 1 ;;
+        esac
+
+        tag="" name="" body="" url=""
+
+        if [[ "${SOURCE}" != "tags" ]]; then
+          tmp="$(mktemp)"
+          code=$(curl -sSL -o "${tmp}" -w '%{http_code}' \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${repo}/releases/latest")
+          if [[ "${code}" == "200" ]]; then
+            tag=$(jq -r '.tag_name // ""' "${tmp}")
+            name=$(jq -r '(.name // .tag_name // "") | gsub("[\\r\\n]+"; " ")' "${tmp}")
+            body=$(jq -r '.body // ""' "${tmp}")
+            url=$(jq -r '.html_url // ""' "${tmp}")
+          elif [[ "${code}" == "404" && "${SOURCE}" == "auto" ]]; then
+            echo "No GitHub release found for ${repo}, falling back to git tags"
+          else
+            echo "::error::GitHub API returned HTTP ${code} for ${repo}"
+            exit 1
+          fi
+          rm -f "${tmp}"
+        fi
+
+        if [[ -z "${tag}" ]]; then
+          # Newest plain vX.Y.Z tag; pre-release tags like v1.2.3-rc1 are ignored.
+          tag=$(git ls-remote --tags --refs --sort=-v:refname "https://github.com/${repo}" \
+                | sed -n 's|.*refs/tags/||p' \
+                | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)
+          name="${tag}"
+          body=""
+          url="https://github.com/${repo}/releases/tag/${tag}"
+        fi
+
+        # The tag ends up in sed expressions, branch names and PR titles: only
+        # accept boring characters, and never echo the offending value.
+        if [[ -z "${tag}" ]]; then
+          echo "::error::No release or version tag found for ${repo}"
+          exit 1
+        fi
+        if [[ ! "${tag}" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]]; then
+          echo "::error::The latest release tag of ${repo} contains unexpected characters"
+          exit 1
+        fi
+        if [[ ! "${url}" =~ ^https://github\.com/ ]]; then
+          url="https://github.com/${repo}/releases/tag/${tag}"
+        fi
+
+        # Write every value with a random delimiter so that multi-line or
+        # hostile content cannot add extra outputs.
+        write_output() {
+          local delim
+          delim="EOF_$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
+          {
+            echo "$1<<${delim}"
+            printf '%s\n' "$2"
+            echo "${delim}"
+          } >> "${GITHUB_OUTPUT}"
+        }
+        write_output version "${tag}"
+        write_output name "${name}"
+        write_output url "${url}"
+        write_output body "${body}"
