@@ -2,6 +2,7 @@ FROM alpine:3.24.2 AS base
 
 ARG FREESWITCH_VERSION="v1.11.3"
 ARG SOFIA_VERSION="v1.13.18"
+ARG SPANDSP_VERSION="v3.1.1"
 
 FROM base AS deps
 
@@ -14,7 +15,9 @@ RUN \
   git clone --depth 1 --branch "${FREESWITCH_VERSION}" https://github.com/signalwire/freeswitch /freeswitch \
   && rm -rf /freeswitch/.git \
   && git clone --depth 1 --branch "${SOFIA_VERSION}" https://github.com/freeswitch/sofia-sip /libdeps/sofia-sip \
-  && rm -rf /sofia-sip/.git
+  && rm -rf /libdeps/sofia-sip/.git \
+  && git clone --depth 1 --branch "${SPANDSP_VERSION}" https://github.com/freeswitch/spandsp /libdeps/spandsp \
+  && rm -rf /libdeps/spandsp/.git
 
 
 FROM base AS builder-sofia
@@ -42,11 +45,36 @@ RUN \
   && make DESTDIR=/build install
 
 
+FROM base AS builder-spandsp
+
+COPY --from=deps /libdeps/spandsp ./libdeps/spandsp
+
+RUN \
+  apk --no-cache upgrade \
+  && apk add --no-cache \
+    build-base \
+    autoconf \
+    automake \
+    libtool \
+    tiff-dev \
+    libjpeg-turbo-dev \
+    util-linux-misc \
+    xz-dev
+
+RUN \
+  cd ./libdeps/spandsp \
+  && ./bootstrap.sh \
+  && ./configure --prefix=/usr --enable-static=no \
+  && make -j$(nproc --all) \
+  && make DESTDIR=/build install
+
+
 FROM base AS builder-freeswitch
 
 COPY --from=deps /freeswitch/ ./app
 #COPY modules.conf ./app
 COPY --from=builder-sofia /build/. .
+COPY --from=builder-spandsp /build/. .
 COPY patches/freeswitch/. ./patches
 
 RUN \
@@ -57,7 +85,6 @@ RUN \
     automake \
     libtool \
     libjpeg-turbo-dev \
-    spandsp3-dev \
     zlib-dev \
     sqlite-dev \
     curl-dev \
@@ -131,6 +158,7 @@ FROM base AS runner
 ARG WORKER_USER_ID=499
 
 COPY --from=builder-freeswitch /build/. .
+COPY --from=builder-spandsp /build/usr/lib/libspandsp.so* /usr/lib/
 
 RUN \
   addgroup -g ${WORKER_USER_ID} freeswitch \
@@ -143,6 +171,8 @@ RUN \
     libpq \
     libks \
     ldns \
+    tiff \
+    libjpeg-turbo \
   && tar -xf libs.tar \
   && rm libs.tar
 
