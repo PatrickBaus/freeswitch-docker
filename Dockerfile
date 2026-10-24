@@ -56,7 +56,6 @@ RUN \
     autoconf \
     automake \
     libtool \
-    m4 \
     libjpeg-turbo-dev \
     spandsp3-dev \
     zlib-dev \
