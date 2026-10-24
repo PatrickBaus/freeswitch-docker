@@ -1,0 +1,39 @@
+name: Check for new release of the dependencies
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  update:
+    name: Update ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Sofia
+            repository: https://github.com/freeswitch/sofia-sip
+            labels: dependencies, sofia
+            branch: updater/github_actions/github/freeswitch/sofia-sip
+            version-arg: SOFIA_VERSION
+          - name: spandsp
+            repository: https://github.com/freeswitch/spandsp
+            labels: dependencies, spandsp
+            branch: updater/github_actions/github/freeswitch/spandsp
+            version-arg: SPANDSP_VERSION
+          - name: FreeSWITCH
+            repository: https://github.com/signalwire/freeswitch
+            labels: dependencies, freeswitch
+            branch: updater/github_actions/github/signalwire/freeswitch
+            version-arg: FREESWITCH_VERSION
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/update-dependency.yml
+    with:
+      repository: ${{ matrix.repository }}
+      name: ${{ matrix.name }}
+      labels: ${{ matrix.labels }}
+      branch: ${{ matrix.branch }}
+      version-arg: ${{ matrix.version-arg }}
