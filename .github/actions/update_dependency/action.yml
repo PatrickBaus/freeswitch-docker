@@ -26,6 +26,14 @@ inputs:
     description: "Path of the Dockerfile to update"
     required: false
     default: "Dockerfile"
+  token:
+    description: >
+      Token used to push the branch and open the pull request. The default
+      GITHUB_TOKEN works, but pull requests it creates do NOT trigger other
+      workflows, so CI will not run on them. Pass a GitHub App token (preferred)
+      or a fine-grained PAT limited to this repository if CI must run.
+    required: false
+    default: ${{ github.token }}
 
 outputs:
   updated:
@@ -65,6 +73,11 @@ runs:
         if [ -z "${VERSION_ARG}" ]; then
           VERSION_ARG="$(echo "${NAME}" | tr '[:lower:] -' '[:upper:]__')_VERSION"
         fi
+        # The name is used inside sed expressions below: only allow a plain identifier.
+        if [[ ! "${VERSION_ARG}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+          echo "::error::'${VERSION_ARG}' is not a valid Dockerfile ARG name (set the version-arg input)"
+          exit 1
+        fi
         VALUE=$(sed -n -E "s/^ARG ${VERSION_ARG}=\"(v[0-9]+\.[0-9]+\.[0-9]+)\"/\1/p" "${DOCKERFILE}")
         if [ -z "${VALUE}" ]; then
           echo "::error::Could not find 'ARG ${VERSION_ARG}=\"vX.Y.Z\"' in ${DOCKERFILE}"
@@ -80,6 +93,11 @@ runs:
         LOCAL_VERSION: ${{ steps.local-version.outputs.value }}
         UPSTREAM_VERSION: ${{ steps.release-info.outputs.version }}
       run: |
+        # The version is used in sed replacements, a branch name and the PR title.
+        if [[ ! "${UPSTREAM_VERSION}" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]]; then
+          echo "::error::Upstream version contains unexpected characters"
+          exit 1
+        fi
         if [ "${LOCAL_VERSION}" != "${UPSTREAM_VERSION}" ]; then
           echo "updated=true" >> "$GITHUB_OUTPUT"
         else
@@ -104,27 +122,59 @@ runs:
           exit 1
         fi
 
+    # Upstream release notes are untrusted text. Cap their length (a PR body is
+    # limited to 65536 characters, so a long changelog would make the action
+    # fail) and defuse @mentions and #123 references so that opening the PR does
+    # not notify strangers or cross-link unrelated issues.
+    - name: Prepare pull request body
+      id: pr-body
+      if: ${{ steps.check.outputs.updated == 'true' }}
+      shell: bash
+      env:
+        DEP_NAME: ${{ inputs.name }}
+        REPOSITORY: ${{ inputs.repository }}
+        RELEASE_NAME: ${{ steps.release-info.outputs.name }}
+        RELEASE_URL: ${{ steps.release-info.outputs.url }}
+        RELEASE_BODY: ${{ steps.release-info.outputs.body }}
+      run: |
+        max=6000
+        zwsp=$'\xe2\x80\x8b'
+        notes=$(printf '%s' "${RELEASE_BODY}" | head -c "${max}" | iconv -c -f UTF-8 -t UTF-8 \
+                | sed -e "s/@/@${zwsp}/g" -e "s/#\([0-9]\)/#${zwsp}\1/g")
+        if [ "${#RELEASE_BODY}" -gt "${max}" ]; then
+          notes+=$'\n\n_(release notes truncated, see the full release)_'
+        fi
+        name=$(printf '%s' "${RELEASE_NAME}" | tr -d '<>&\r\n')
+        [[ "${RELEASE_URL}" =~ ^https://github\.com/ ]] || RELEASE_URL="${REPOSITORY}/releases"
+
+        {
+          printf 'Updates the requirements on [%s](%s/releases) to permit the latest version.\n' "${DEP_NAME}" "${REPOSITORY}"
+          if [ -n "${notes//[[:space:]]/}" ]; then
+            printf '<details>\n<summary>Release notes</summary>\n<p dir="auto">\n'
+            printf '<em>Sourced from <a href="%s">%s</a>.</em>\n</p>\n' "${RELEASE_URL}" "${name}"
+            printf '<blockquote>\n\n%s\n\n</blockquote>\n</details>\n' "${notes}"
+          fi
+        } > "${RUNNER_TEMP}/pr-body.md"
+
+        delim="EOF_$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
+        {
+          echo "value<<${delim}"
+          cat "${RUNNER_TEMP}/pr-body.md"
+          echo "${delim}"
+        } >> "${GITHUB_OUTPUT}"
+
     - name: Create Pull Request
       if: ${{ steps.check.outputs.updated == 'true' }}
-      uses: peter-evans/create-pull-request@v8
+      uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
       with:
+        token: ${{ inputs.token }}
         commit-message: |
           [${{ inputs.name }}] Update ${{ inputs.name }} from ${{ steps.local-version.outputs.value }} to ${{ steps.release-info.outputs.version }}
 
           Updates the requirements on [${{ inputs.name }}](${{ inputs.repository }}) to permit the latest version.
           - [Release notes](${{ inputs.repository }}/releases)
-        body: |
-          Updates the requirements on [${{ inputs.name }}](${{ inputs.repository }}/releases) to permit the latest version.
-          <details>
-          <summary>Release notes</summary>
-          <p dir="auto">
-          <em>Sourced from <a href="${{ steps.release-info.outputs.url }}">${{ steps.release-info.outputs.name }}'s releases</a>.</em>
-          </p>
-          <blockquote>
-          ${{ steps.release-info.outputs.body }}
-          </blockquote>
-          </details>
-        title: |
+        body: ${{ steps.pr-body.outputs.value }}
+        title: >-
           [${{ inputs.name }}] Update ${{ inputs.name }} from ${{ steps.local-version.outputs.value }} to ${{ steps.release-info.outputs.version }}
         labels: ${{ inputs.labels }}
         branch: ${{ inputs.branch }}-${{ steps.release-info.outputs.version }}

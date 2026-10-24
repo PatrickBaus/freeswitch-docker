@@ -6,6 +6,16 @@ on:
     tags: [ "*.*.*" ]
   pull_request:
 
+# Least privilege by default; jobs that need more declare it themselves.
+permissions:
+  contents: read
+
+# Serialize runs per ref so an older run can never finish last and overwrite a
+# tag (e.g. :master) with an older image. PR builds are cancelled when superseded.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   REGISTRY: ghcr.io # Using GitHub Container Registry
   IMAGE_NAME: ${{ github.repository }}
@@ -22,7 +32,7 @@ jobs:
 
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ steps.set-variables.outputs.image }}
           tags: |
@@ -51,18 +61,20 @@ jobs:
           - linux/amd64
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up QEMU
         if: matrix.platform != 'linux/amd64'
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - name: Setup Docker buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Log into registry ${{ env.REGISTRY }}
         if: needs.prepare.outputs.push == 'true'
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -70,7 +82,7 @@ jobs:
 
       - name: Build and push Docker image by digest
         id: build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           platforms: ${{ matrix.platform }}
@@ -78,10 +90,11 @@ jobs:
           labels: ${{ needs.prepare.outputs.meta-labels }}
 
       - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
+          touch "/tmp/digests/${DIGEST#sha256:}"
         shell: bash
 
       - name: Sanitize platform string
@@ -94,7 +107,7 @@ jobs:
 
       - name: Upload digest
         if: needs.prepare.outputs.push == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: digest-${{ steps.platform.outputs.value }}
           path: /tmp/digests/*
@@ -112,18 +125,18 @@ jobs:
       packages: write
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: /tmp/digests
           pattern: digest-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Log into registry ${{ env.REGISTRY }}
         if: needs.prepare.outputs.push == 'true'
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -132,11 +145,20 @@ jobs:
       - name: Create manifest list and push
         if: needs.prepare.outputs.push == 'true'
         working-directory: /tmp/digests
+        env:
+          # Passed via env, never pasted into the script: the metadata JSON
+          # contains values (labels, tag names) that are not fully trusted.
+          META_JSON: ${{ needs.prepare.outputs.meta-json }}
+          IMAGE: ${{ needs.prepare.outputs.image }}
         run: |
-          docker buildx imagetools create $(jq -r '"-t " + (.tags | join(" -t "))' <<< '${{ needs.prepare.outputs.meta-json }}') \
-            $(printf '${{ needs.prepare.outputs.image }}@sha256:%s ' *)
+          docker buildx imagetools create \
+            $(jq -r '"-t " + (.tags | join(" -t "))' <<< "${META_JSON}") \
+            $(printf "${IMAGE}@sha256:%s " *)
 
       - name: Inspect image
         if: needs.prepare.outputs.push == 'true'
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          VERSION: ${{ needs.prepare.outputs.meta-version }}
         run: |
-          docker buildx imagetools inspect '${{ needs.prepare.outputs.image }}:${{ needs.prepare.outputs.meta-version }}'
+          docker buildx imagetools inspect "${IMAGE}:${VERSION}"
