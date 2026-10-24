@@ -30,7 +30,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: ./.github/workflows/update-dependency.yml
+    uses: ./.github/actions/update-dependency.yml
     with:
       repository: ${{ matrix.repository }}
       name: ${{ matrix.name }}
