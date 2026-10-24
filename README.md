@@ -1,6 +1,5 @@
 [![GitHub release](https://img.shields.io/github/release/PatrickBaus/freeswitch-docker.svg)](https://github.com/PatrickBaus/freeswitch-docker/releases/latest)
-[![Check for new release of FreeSWITCH](https://github.com/PatrickBaus/freeswitch-docker/actions/workflows/updater_freeswitch.yml/badge.svg)](https://github.com/PatrickBaus/freeswitch-docker/actions/workflows/updater_freeswitch.yml)
-[![Check for new release of Sofia](https://github.com/PatrickBaus/freeswitch-docker/actions/workflows/updater_sofia.yml/badge.svg)](https://github.com/PatrickBaus/freeswitch-docker/actions/workflows/updater_sofia.yml)
+[![Update dependencies](https://github.com/PatrickBaus/freeswitch-docker/actions/workflows/update_dependencies.yml/badge.svg)](https://github.com/PatrickBaus/freeswitch-docker/actions/workflows/update_dependencies.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white)](https://github.com/PatrickBaus/freeswitch-docker/pkgs/container/freeswitch-docker)
 # FreeSWTICH Docker container
