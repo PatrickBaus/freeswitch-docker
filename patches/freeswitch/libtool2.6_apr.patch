@@ -1,0 +1,20 @@
+diff --git a/bootstrap.sh b/bootstrap.sh
+index 4251c8e..f2d5192 100755
+--- a/bootstrap.sh
++++ b/bootstrap.sh
+@@ -129,7 +129,14 @@ bootstrap_apr() {
+ 
+   echo "bootstrap: Using libtool.m4 at ${ltfile}."
+ 
+-  cat $ltfile | sed -e 's/LIBTOOL=\(.*\)top_build/LIBTOOL=\1apr_build/' > build/libtool.m4
++  # libtool 2.6.0 ships a libtool.m4 with a stray "])])[]dnl" + "])" after
++  # LT_PROG_OBJC and LT_PROG_OBJCXX. APR sinclude()s this file after AC_INIT,
++  # so the leftovers end up verbatim in configure ("unexpected )").
++  # Strip them; this is a no-op on unaffected libtool versions.
++  cat $ltfile | sed -e 's/LIBTOOL=\(.*\)top_build/LIBTOOL=\1apr_build/' | \
++    awk '{ if (skip) { skip = 0; if ($0 == "])") next } }
++         /AC_SUBST\(OBJC(XX)?FLAGS\)\]\)\]\)\[\]dnl$/ { sub(/\]\)\]\)\[\]dnl$/, "])"); skip = 1 }
++         { print }' > build/libtool.m4
+ 
+   # libtool.m4 from 1.6 requires ltsugar.m4
+   if [ -f ltsugar.m4 ]; then
