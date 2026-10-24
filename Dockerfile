@@ -160,6 +160,13 @@ ARG WORKER_USER_ID=499
 COPY --from=builder-freeswitch /build/. .
 COPY --from=builder-spandsp /build/usr/lib/libspandsp.so* /usr/lib/
 
+# Keep a pristine copy of the default configuration. A volume mounted on
+# /etc/freeswitch hides the one installed above, so the entrypoint seeds an
+# empty mount from this copy.
+RUN mkdir -p /usr/share/freeswitch \
+  && cp -a /etc/freeswitch /usr/share/freeswitch/conf.default
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
 RUN \
   addgroup -g ${WORKER_USER_ID} freeswitch \
   && adduser -D -u ${WORKER_USER_ID} -G freeswitch freeswitch \
@@ -189,4 +196,5 @@ HEALTHCHECK --interval=15s --timeout=5s \
     CMD  fs_cli -x status | grep -q ^UP || exit 1
 
 # USER freeswitch
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["/usr/bin/freeswitch"]
