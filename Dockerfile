@@ -1,4 +1,4 @@
-FROM alpine:3.24.2 AS base
+FROM alpine:3.24.3 AS base
 
 ARG FREESWITCH_VERSION="v1.11.3"
 ARG SOFIA_VERSION="v1.13.18"
