@@ -103,7 +103,7 @@ RUN \
     unixodbc-dev \
     libpq-dev \
     mariadb-dev \
-    miniupnpc \
+    miniupnpc-dev \
     mpg123-dev \
     tiff-dev \
     flite-dev \
@@ -179,6 +179,7 @@ RUN \
     libpq \
     libks \
     ldns \
+    miniupnpc \
     tiff \
     libjpeg-turbo \
   && tar -xf libs.tar \
