@@ -34,6 +34,16 @@ jobs:
             labels: dependencies, freeswitch
             branch: updater/github_actions/github/signalwire/freeswitch
             version-arg: FREESWITCH_VERSION
+          - name: libks
+            repository: https://github.com/signalwire/libks
+            labels: dependencies, libks
+            branch: updater/github_actions/github/signalwire/libks
+            version-arg: LIBKS_VERSION
+          - name: signalwire-c
+            repository: https://github.com/signalwire/signalwire-c
+            labels: dependencies, signalwire-c
+            branch: updater/github_actions/github/signalwire/signalwire-c
+            version-arg: SIGNALWIRE_C_VERSION
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

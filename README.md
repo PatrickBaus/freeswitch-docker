@@ -2,8 +2,8 @@
 [![Update dependencies](https://github.com/PatrickBaus/freeswitch-docker/actions/workflows/update_dependencies.yml/badge.svg)](https://github.com/PatrickBaus/freeswitch-docker/actions/workflows/update_dependencies.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white)](https://github.com/PatrickBaus/freeswitch-docker/pkgs/container/freeswitch-docker)
-# FreeSWTICH Docker container
-This is an inofficial Docker container for [FreeSWITCH](https://signalwire.com/freeswitch). There currently is no official Docker container using [Alpine Linux](https://alpinelinux.org/) available from Signalwire. The official container [safarov/freeswitch](https://hub.docker.com/r/safarov/freeswitch) is based on Debian.
+# FreeSWITCH Docker container
+This is an unofficial Docker container for [FreeSWITCH](https://signalwire.com/freeswitch). There currently is no official Docker container using [Alpine Linux](https://alpinelinux.org/) available from SignalWire. The official container [safarov/freeswitch](https://hub.docker.com/r/safarov/freeswitch) is based on Debian.
 
 ## Contents
 - [Introduction](#introduction)
@@ -13,10 +13,12 @@ This is an inofficial Docker container for [FreeSWITCH](https://signalwire.com/f
 - [License](#license)
 
 ## Introduction
-This Docker container is based on [Alpine Linux](https://alpinelinux.org/) instead of the Debian base image used by the [example Dockerfiles](https://github.com/signalwire/freeswitch#build-from-source). The container, in contrast to the default [FreeSWITCH](https://signalwire.com/freeswitch) build, does not contain `mod_signalwire`.
+This Docker container is based on [Alpine Linux](https://alpinelinux.org/) instead of the Debian base image used by the [example Dockerfiles](https://github.com/signalwire/freeswitch#build-from-source). The container includes `mod_signalwire`, built against [libks2](https://github.com/signalwire/libks) and the [SignalWire C client](https://github.com/signalwire/signalwire-c) (both compiled from source), as well as `mod_av` with H.264 support via FFmpeg and x264.
+
+Note that building a module does not load it. Make sure `mod_signalwire` is listed in `autoload_configs/modules.conf.xml` if you want to use it, and provision it with your SignalWire credentials as described in the [FreeSWITCH documentation](https://developer.signalwire.com/freeswitch/).
 
 ## Installation
-The container requires a data volume to store the configuration. [FreeSWITCH](https://signalwire.com/freeswitch) also requires port forwarding of (possibly) a large number of ports. The ports required can be found in the [FreeSWITCH documentation](https://developer.signalwire.com/freeswitch/FreeSWITCH-Explained/Networking/Firewall_1048908/), but due to the nature of RTP, the large number of required ports pose an [issue with Docker](https://github.com/moby/moby/issues/11185). It is therefore recommended to use `host` networking mode with this image.
+The container requires a data volume to store the configuration. [FreeSWITCH](https://signalwire.com/freeswitch) also requires port forwarding of (possibly) a large number of ports. The ports required can be found in the [FreeSWITCH documentation](https://developer.signalwire.com/freeswitch/FreeSWITCH-Explained/Networking/Firewall_1048908/), but due to the nature of RTP, the large number of required ports poses an [issue with Docker](https://github.com/moby/moby/issues/11185). It is therefore recommended to use `host` networking mode with this image.
 
 The container can be started via Docker using the following command, but it is recommended to use [Docker Compose](https://docs.docker.com/compose/) instead.
 
@@ -47,7 +49,7 @@ services:
 This compose file mounts two volumes into the container, one for the logs and the other for the config files. It also uses `host` mode for networking and enables `SYS_NICE` capabilities.
 
 ## Versioning
-I follow the [FreeSWITCH releases](https://github.com/signalwire/freeswitch/releases) for version numbering. For the versions available, see the [tags](../../tags) available for this repository.
+I follow the [FreeSWITCH releases](https://github.com/signalwire/freeswitch/releases) for version numbering. For available versions, see the [tags](../../tags) of this repository.
 
 ## Authors
 * **Patrick Baus** - *Initial work* - [PatrickBaus](https://github.com/PatrickBaus)
