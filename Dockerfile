@@ -1,6 +1,6 @@
 FROM alpine:3.24.4 AS base
 
-ARG FREESWITCH_VERSION="v1.11.3"
+ARG FREESWITCH_VERSION="v1.11.4"
 ARG SOFIA_VERSION="v1.13.19"
 ARG SPANDSP_VERSION="v3.1.1"
 
@@ -88,9 +88,11 @@ RUN \
     zlib-dev \
     sqlite-dev \
     curl-dev \
+    libnatpmp-dev \
     pcre2-dev \
     speex-dev \
     speexdsp-dev \
+    miniupnpc-dev \
   # mod_enum
     ldns-dev \
     libedit-dev \
@@ -172,14 +174,16 @@ RUN \
   && adduser -D -u ${WORKER_USER_ID} -G freeswitch freeswitch \
   && apk --no-cache upgrade \
   && apk add --no-cache \
-    opus \
+    ldns \
+    libjpeg-turbo \
+    libks \
+    libnatpmp \
+    libpq \
     libsndfile \
     lua5.3-libs \
-    libpq \
-    libks \
-    ldns \
+    miniupnpc \
+    opus \
     tiff \
-    libjpeg-turbo \
   && tar -xf libs.tar \
   && rm libs.tar
 
