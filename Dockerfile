@@ -6,6 +6,10 @@ ARG SPANDSP_VERSION="v3.1.1"
 
 FROM base AS deps
 
+ARG FREESWITCH_VERSION
+ARG SOFIA_VERSION
+ARG SPANDSP_VERSION
+
 RUN \
   apk --no-cache upgrade \
   && apk --no-cache add \
@@ -163,6 +167,7 @@ ARG WORKER_USER_ID=499
 
 COPY --from=builder-freeswitch /build/. .
 COPY --from=builder-spandsp /build/usr/lib/libspandsp.so* /usr/lib/
+COPY --from=builder-sofia /build/usr/lib/libsofia-sip-ua*.so* /usr/lib/
 
 # Keep a pristine copy of the default configuration. A volume mounted on
 # /etc/freeswitch hides the one installed above, so the entrypoint seeds an
@@ -177,12 +182,14 @@ RUN \
   && apk --no-cache upgrade \
   && apk add --no-cache \
     ffmpeg-libs \
+    glib \
     ldns \
     libjpeg-turbo \
     libks \
     libnatpmp \
     libpq \
     libsndfile \
+    lksctp-tools \
     lua5.3-libs \
     miniupnpc \
     opus \
