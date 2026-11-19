@@ -3,7 +3,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white)](https://github.com/PatrickBaus/freeswitch-docker/pkgs/container/freeswitch-docker)
 # FreeSWTICH Docker container
-This is an inofficial Docker file for [FreeSWITCH](https://signalwire.com/freeswitch). There currently is no official Docker container using [Alpine Linux](https://alpinelinux.org/)] available from Signalwire. The official container [safarov/freeswitch](https://hub.docker.com/r/safarov/freeswitch) is based on Debian.
+This is an inofficial Docker container for [FreeSWITCH](https://signalwire.com/freeswitch). There currently is no official Docker container using [Alpine Linux](https://alpinelinux.org/) available from Signalwire. The official container [safarov/freeswitch](https://hub.docker.com/r/safarov/freeswitch) is based on Debian.
 
 ## Contents
 - [Introduction](#introduction)
