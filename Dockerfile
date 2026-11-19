@@ -3,12 +3,16 @@ FROM alpine:3.24.4 AS base
 ARG FREESWITCH_VERSION="v1.11.4"
 ARG SOFIA_VERSION="v1.13.19"
 ARG SPANDSP_VERSION="v3.1.1"
+ARG LIBKS_VERSION="v2.0.11"
+ARG SIGNALWIRE_C_VERSION="v2.0.6"
 
 FROM base AS deps
 
 ARG FREESWITCH_VERSION
 ARG SOFIA_VERSION
 ARG SPANDSP_VERSION
+ARG LIBKS_VERSION
+ARG SIGNALWIRE_C_VERSION
 
 RUN \
   apk --no-cache upgrade \
@@ -21,7 +25,11 @@ RUN \
   && git clone --depth 1 --branch "${SOFIA_VERSION}" https://github.com/freeswitch/sofia-sip /libdeps/sofia-sip \
   && rm -rf /libdeps/sofia-sip/.git \
   && git clone --depth 1 --branch "${SPANDSP_VERSION}" https://github.com/freeswitch/spandsp /libdeps/spandsp \
-  && rm -rf /libdeps/spandsp/.git
+  && rm -rf /libdeps/spandsp/.git \
+  && git clone --depth 1 --branch "${LIBKS_VERSION}" https://github.com/signalwire/libks /libdeps/libks \
+  && rm -rf /libdeps/libks/.git \
+  && git clone --depth 1 --branch "${SIGNALWIRE_C_VERSION}" https://github.com/signalwire/signalwire-c /libdeps/signalwire-c \
+  && rm -rf /libdeps/signalwire-c/.git
 
 
 FROM base AS builder-sofia
@@ -73,12 +81,60 @@ RUN \
   && make DESTDIR=/build install
 
 
+FROM base AS builder-libks
+
+COPY --from=deps /libdeps/libks ./libdeps/libks
+
+RUN \
+  apk --no-cache upgrade \
+  && apk add --no-cache \
+    build-base \
+    cmake \
+    openssl-dev \
+    util-linux-dev
+
+RUN \
+  cd ./libdeps/libks \
+  && cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DWITH_PACKAGING=OFF \
+  && cmake --build build -j$(nproc --all) \
+  && DESTDIR=/build cmake --install build
+
+
+FROM base AS builder-signalwire
+
+# signalwire-c locates libks2 through pkg-config, so it has to be installed here
+COPY --from=deps /libdeps/signalwire-c ./libdeps/signalwire-c
+COPY --from=builder-libks /build/. .
+
+RUN \
+  apk --no-cache upgrade \
+  && apk add --no-cache \
+    build-base \
+    cmake \
+    openssl-dev \
+    util-linux-dev
+
+RUN \
+  cd ./libdeps/signalwire-c \
+  && cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+  && cmake --build build -j$(nproc --all) \
+  && cp copyright build/copyright \
+  && DESTDIR=/build cmake --install build
+
+
 FROM base AS builder-freeswitch
 
 COPY --from=deps /freeswitch/ ./app
 #COPY modules.conf ./app
 COPY --from=builder-sofia /build/. .
 COPY --from=builder-spandsp /build/. .
+COPY --from=builder-libks /build/. .
+COPY --from=builder-signalwire /build/. .
 COPY patches/freeswitch/. ./patches
 
 RUN \
@@ -125,8 +181,8 @@ RUN \
     net-snmp-dev\
   # mod_sndfile
     libsndfile-dev \
-  # mod_verto
-    libks-dev \
+  # mod_verto / mod_signalwire: libks2 and signalwire-client-c2 are built from source
+    openssl-dev \
   # mod_av
     ffmpeg-dev \
     x264-dev
@@ -155,6 +211,7 @@ RUN \
   && make install \
   && make DESTDIR=/build install \
   && test -f /build/usr/lib/freeswitch/mod/mod_av.so \
+  && test -f /build/usr/lib/freeswitch/mod/mod_signalwire.so \
   && make DESTDIR=/build samples-conf \
   && make DESTDIR=/build cd-moh-install \
   && make DESTDIR=/build cd-sounds-install \
@@ -168,6 +225,8 @@ ARG WORKER_USER_ID=499
 COPY --from=builder-freeswitch /build/. .
 COPY --from=builder-spandsp /build/usr/lib/libspandsp.so* /usr/lib/
 COPY --from=builder-sofia /build/usr/lib/libsofia-sip-ua*.so* /usr/lib/
+COPY --from=builder-libks /build/usr/lib/libks2.so* /usr/lib/
+COPY --from=builder-signalwire /build/usr/lib/libsignalwire_client2.so* /usr/lib/
 
 # Keep a pristine copy of the default configuration. A volume mounted on
 # /etc/freeswitch hides the one installed above, so the entrypoint seeds an
@@ -185,9 +244,9 @@ RUN \
     glib \
     ldns \
     libjpeg-turbo \
-    libks \
     libnatpmp \
     libpq \
+    libuuid \
     libsndfile \
     lksctp-tools \
     lua5.3-libs \
