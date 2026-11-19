@@ -103,6 +103,7 @@ RUN \
     unixodbc-dev \
     libpq-dev \
     mariadb-dev \
+    miniupnpc \
     mpg123-dev \
     tiff-dev \
     flite-dev \
