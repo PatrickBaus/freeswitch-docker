@@ -6,6 +6,10 @@ ARG SPANDSP_VERSION="v3.1.1"
 
 FROM base AS deps
 
+ARG FREESWITCH_VERSION
+ARG SOFIA_VERSION
+ARG SPANDSP_VERSION
+
 RUN \
   apk --no-cache upgrade \
   && apk --no-cache add \
@@ -124,7 +128,8 @@ RUN \
   # mod_verto
     libks-dev \
   # mod_av
-    ffmpeg-dev
+    ffmpeg-dev \
+    x264-dev
 
 RUN \
   cd /app \
@@ -149,6 +154,7 @@ RUN \
   && make -j$(nproc) \
   && make install \
   && make DESTDIR=/build install \
+  && test -f /build/usr/lib/freeswitch/mod/mod_av.so \
   && make DESTDIR=/build samples-conf \
   && make DESTDIR=/build cd-moh-install \
   && make DESTDIR=/build cd-sounds-install \
@@ -161,6 +167,7 @@ ARG WORKER_USER_ID=499
 
 COPY --from=builder-freeswitch /build/. .
 COPY --from=builder-spandsp /build/usr/lib/libspandsp.so* /usr/lib/
+COPY --from=builder-sofia /build/usr/lib/libsofia-sip-ua*.so* /usr/lib/
 
 # Keep a pristine copy of the default configuration. A volume mounted on
 # /etc/freeswitch hides the one installed above, so the entrypoint seeds an
@@ -174,18 +181,29 @@ RUN \
   && adduser -D -u ${WORKER_USER_ID} -G freeswitch freeswitch \
   && apk --no-cache upgrade \
   && apk add --no-cache \
+    ffmpeg-libs \
+    glib \
     ldns \
     libjpeg-turbo \
     libks \
     libnatpmp \
     libpq \
     libsndfile \
+    lksctp-tools \
     lua5.3-libs \
     miniupnpc \
     opus \
     tiff \
+    x264-libs \
   && tar -xf libs.tar \
-  && rm libs.tar
+  && rm libs.tar \
+  # fail the build if any binary or module has unresolved shared libraries
+  && for f in /usr/bin/freeswitch /usr/bin/fs_cli /usr/lib/freeswitch/mod/*.so; do \
+       if ldd "$f" 2>&1 | grep -q "not found"; then \
+         echo "Missing runtime libraries for $f:"; ldd "$f" | grep "not found"; \
+         exit 1; \
+       fi; \
+     done
 
 EXPOSE 8021/tcp
 EXPOSE 5060/tcp 5060/udp 5080/tcp 5080/udp
