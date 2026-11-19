@@ -13,7 +13,7 @@ This is an unofficial Docker container for [FreeSWITCH](https://signalwire.com/f
 - [License](#license)
 
 ## Introduction
-This Docker container is based on [Alpine Linux](https://alpinelinux.org/) instead of the Debian base image used by the [example Dockerfiles](https://github.com/signalwire/freeswitch#build-from-source). The container includes `mod_signalwire`, which is built against [libks2](https://github.com/signalwire/libks) and the [SignalWire C client](https://github.com/signalwire/signalwire-c) (both built from source), and `mod_av` with H.264 support via FFmpeg and x264.
+This Docker container is based on [Alpine Linux](https://alpinelinux.org/) instead of the Debian base image used by the [example Dockerfiles](https://github.com/signalwire/freeswitch#build-from-source). The container includes `mod_signalwire`, built against [libks2](https://github.com/signalwire/libks) and the [SignalWire C client](https://github.com/signalwire/signalwire-c) (both compiled from source), as well as `mod_av` with H.264 support via FFmpeg and x264.
 
 Note that building a module does not load it. Make sure `mod_signalwire` is listed in `autoload_configs/modules.conf.xml` if you want to use it, and provision it with your SignalWire credentials as described in the [FreeSWITCH documentation](https://developer.signalwire.com/freeswitch/).
 
@@ -49,7 +49,7 @@ services:
 This compose file mounts two volumes into the container, one for the logs and the other for the config files. It also uses `host` mode for networking and enables `SYS_NICE` capabilities.
 
 ## Versioning
-I follow the [FreeSWITCH releases](https://github.com/signalwire/freeswitch/releases) for version numbering. For the versions available, see the [tags](../../tags) available for this repository.
+I follow the [FreeSWITCH releases](https://github.com/signalwire/freeswitch/releases) for version numbering. For available versions, see the [tags](../../tags) of this repository.
 
 ## Authors
 * **Patrick Baus** - *Initial work* - [PatrickBaus](https://github.com/PatrickBaus)
