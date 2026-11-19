@@ -88,9 +88,11 @@ RUN \
     zlib-dev \
     sqlite-dev \
     curl-dev \
+    libnatpmp-dev \
     pcre2-dev \
     speex-dev \
     speexdsp-dev \
+    miniupnpc-dev \
   # mod_enum
     ldns-dev \
     libedit-dev \
@@ -103,7 +105,6 @@ RUN \
     unixodbc-dev \
     libpq-dev \
     mariadb-dev \
-    miniupnpc-dev \
     mpg123-dev \
     tiff-dev \
     flite-dev \
@@ -173,15 +174,16 @@ RUN \
   && adduser -D -u ${WORKER_USER_ID} -G freeswitch freeswitch \
   && apk --no-cache upgrade \
   && apk add --no-cache \
-    opus \
+    ldns \
+    libjpeg-turbo \
+    libks \
+    libnatpmp \
+    libpq \
     libsndfile \
     lua5.3-libs \
-    libpq \
-    libks \
-    ldns \
     miniupnpc \
+    opus \
     tiff \
-    libjpeg-turbo \
   && tar -xf libs.tar \
   && rm libs.tar
 
